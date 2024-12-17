@@ -1,4 +1,12 @@
 #include <DHTesp.h>
+#include <WiFi.h>
+#include <HTTPClient.h>
+
+const char *ssid = "Wokwi-GUEST";
+const char *password = "";
+
+const String BOT_TOKEN = "7171674667:AAGaMK5_sw0E4Dx7rI8YH3l5ZB1uHsCiXWE"; // Token của bot Telegram
+const String CHANNEL_ID = "1501781748";
 
 // Cài đặt chân
 const int trigPin = 4;
@@ -6,12 +14,12 @@ const int echoPin = 0;
 const int photoResistorPin = 2;
 DHTesp dhtSensor;
 const int dhtPin = 17;
-
 const int lightPin = 25;
 const int fanPin = 26;
 const int waterPin = 27;
 const int heaterPin = 14;
 const int pumpPin = 12;
+const int wifiLedPin = 16;
 
 // Ngưỡng cài đặt
 double minTemp = 25.0;
@@ -24,8 +32,8 @@ double minBrightness = 2000.0;
 double maxBrightness = 5000.0;
 
 int defaultWateringDuration = 10000; // 10 giây
-int defaultHeaterDuration = 10000;  // 10 giây
-int defaultFanDuration = 10000;     // 10 giây
+int defaultHeaterDuration = 10000;   // 10 giây
+int defaultFanDuration = 10000;      // 10 giây
 
 double tankHeight = 1.5;
 
@@ -34,7 +42,50 @@ unsigned long lastWateringTime = 0;
 unsigned long lastHeaterTime = 0;
 unsigned long lastFanTime = 0;
 
-void setup() {
+void wifiConnect()
+{
+  WiFi.begin(ssid, password);
+  while (WiFi.status() != WL_CONNECTED)
+  {
+    delay(500);
+    Serial.print(".");
+  }
+  digitalWrite(wifiLedPin, HIGH);
+  delay(2000);
+  digitalWrite(wifiLedPin, LOW);
+  Serial.println(" Connected!");
+}
+
+void sendTelegramMessage(String message)
+{
+  if (WiFi.status() == WL_CONNECTED)
+  {
+    HTTPClient http;
+    String url = "https://api.telegram.org/bot" + BOT_TOKEN +
+                 "/sendMessage?chat_id=" + CHANNEL_ID +
+                 "&text=" + message;
+
+    http.begin(url);
+    int httpCode = http.GET();
+
+    if (httpCode > 0)
+    {
+      Serial.println("Telegram message sent successfully!");
+    }
+    else
+    {
+      Serial.println("Error sending message: " + http.errorToString(httpCode));
+    }
+    http.end();
+  }
+  else
+  {
+    Serial.println("WiFi not connected!");
+  }
+}
+
+void setup()
+{
   Serial.begin(115200);
   Serial.println("ESP32 Automation System Starting...");
 
@@ -46,12 +97,16 @@ void setup() {
   pinMode(waterPin, OUTPUT);
   pinMode(heaterPin, OUTPUT);
   pinMode(pumpPin, OUTPUT);
+  pinMode(wifiLedPin, OUTPUT);
 
   // Cài đặt cảm biến DHT
   dhtSensor.setup(dhtPin, DHTesp::DHT22);
+
+  wifiConnect();
 }
 
-double getDistance() {
+double getDistance()
+{
   digitalWrite(trigPin, LOW);
   delayMicroseconds(2);
   digitalWrite(trigPin, HIGH);
@@ -62,7 +117,8 @@ double getDistance() {
   return distanceM;
 }
 
-double getBrightness() {
+double getBrightness()
+{
   int analogValue = analogRead(photoResistorPin);
   double voltage = analogValue / 4096.0 * 5;
   double resistance = 2000 * voltage / (1 - voltage / 5);
@@ -70,7 +126,8 @@ double getBrightness() {
   return lux;
 }
 
-void loop() {
+void loop()
+{
   unsigned long currentMillis = millis();
 
   // Đọc dữ liệu cảm biến
@@ -86,18 +143,25 @@ void loop() {
   Serial.println("----------------------------");
 
   // Kiểm tra và bật hệ thống nước
-  if (data.temperature >= maxTemp || data.humidity <= minHumid) {
-    Serial.println(currentMillis - lastWateringTime);
-    if (currentMillis - lastWateringTime >= defaultWateringDuration) {
+  if (data.temperature >= maxTemp || data.humidity <= minHumid)
+  {
+    sendTelegramMessage("⚠️ Cảnh báo: Nhiệt độ quá cao!");
+    if (currentMillis - lastWateringTime >= defaultWateringDuration)
+    {
       Serial.println("Watering: OFF");
       digitalWrite(waterPin, LOW);
       lastWateringTime = currentMillis;
-    } else {
+    }
+    else
+    {
       digitalWrite(waterPin, HIGH);
       Serial.println("Watering: ON");
     }
-  } else {
-    if (currentMillis - lastWateringTime >= defaultWateringDuration) {
+  }
+  else
+  {
+    if (currentMillis - lastWateringTime >= defaultWateringDuration)
+    {
       Serial.println("Watering: OFF");
       digitalWrite(waterPin, LOW);
       lastWateringTime = currentMillis;
@@ -105,25 +169,35 @@ void loop() {
   }
 
   // Kiểm tra và bật máy bơm
-  if (waterLevel <= tankHeight * minWaterLevel) {
+  if (waterLevel <= tankHeight * minWaterLevel)
+  {
     Serial.println("Warning: Water level too low!");
     digitalWrite(pumpPin, HIGH);
-  } else if (waterLevel >= tankHeight * maxWaterLevel) {
+  }
+  else if (waterLevel >= tankHeight * maxWaterLevel)
+  {
     digitalWrite(pumpPin, LOW);
   }
 
   // Kiểm tra và bật máy sưởi
-  if (data.temperature <= minTemp) {
-    if (currentMillis - lastHeaterTime >= defaultHeaterDuration) {
+  if (data.temperature <= minTemp)
+  {
+    if (currentMillis - lastHeaterTime >= defaultHeaterDuration)
+    {
       Serial.println("Heater: OFF");
       digitalWrite(heaterPin, LOW);
       lastHeaterTime = currentMillis;
-    } else {
+    }
+    else
+    {
       digitalWrite(heaterPin, HIGH);
       Serial.println("Heater: ON");
     }
-  } else {
-    if (currentMillis - lastHeaterTime >= defaultHeaterDuration) {
+  }
+  else
+  {
+    if (currentMillis - lastHeaterTime >= defaultHeaterDuration)
+    {
       Serial.println("Heater: OFF");
       digitalWrite(heaterPin, LOW);
       lastHeaterTime = currentMillis;
@@ -131,17 +205,24 @@ void loop() {
   }
 
   // Kiểm tra và bật quạt
-  if (data.humidity >= maxHumid) {
-    if (currentMillis - lastFanTime >= defaultFanDuration) {
+  if (data.humidity >= maxHumid)
+  {
+    if (currentMillis - lastFanTime >= defaultFanDuration)
+    {
       Serial.println("Fan: OFF");
       digitalWrite(fanPin, LOW);
       lastFanTime = currentMillis;
-    } else {
+    }
+    else
+    {
       digitalWrite(fanPin, HIGH);
       Serial.println("Fan: ON");
     }
-  } else {
-    if (currentMillis - lastFanTime >= defaultFanDuration) {
+  }
+  else
+  {
+    if (currentMillis - lastFanTime >= defaultFanDuration)
+    {
       Serial.println("Fan: OFF");
       digitalWrite(fanPin, LOW);
       lastFanTime = currentMillis;
@@ -150,12 +231,15 @@ void loop() {
 
   // Kiểm tra và bật đèn
   // --ON-- 2000 --ON-- 5000 --OFF--
-  if (brightness <= minBrightness) {
+  if (brightness <= minBrightness)
+  {
     Serial.println("Light: ON");
     digitalWrite(lightPin, HIGH);
-  } else if (brightness >= minBrightness) {
+  }
+  else if (brightness >= minBrightness)
+  {
     Serial.println("Light: OFF");
     digitalWrite(lightPin, LOW);
-  } 
+  }
   delay(1000);
 }
