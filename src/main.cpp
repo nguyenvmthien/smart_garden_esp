@@ -2,6 +2,8 @@
 #include <WiFi.h>
 #include <PubSubClient.h>
 #include <WiFiClientSecure.h>
+#include <ArduinoJson.h>
+#include <time.h>
 
 // Kết nối WiFi
 const char *ssid = "Wokwi-GUEST";
@@ -40,7 +42,7 @@ void mqttConnect()
     if (mqttClient.connect(clientId.c_str(), mqttUser, mqttPassword))
     {
       Serial.println("MQTT connected");
-      mqttClient.subscribe("smart-garden/#");
+      mqttClient.subscribe("smart-garden-web/#");
     }
     else
     {
@@ -49,20 +51,6 @@ void mqttConnect()
       delay(5000);
     }
   }
-}
-
-// MQTT Receiver
-void callback(char *topic, byte *message, unsigned int length)
-{
-  Serial.println(topic);
-  String strMsg;
-  for (int i = 0; i < length; i++)
-  {
-    strMsg += (char)message[i];
-  }
-  Serial.println(strMsg);
-
-  //***Code here to process the received package***
 }
 
 // Cài đặt chân
@@ -92,13 +80,157 @@ double maxBrightness = 5000.0;
 int defaultWateringDuration = 10000; // 10 giây
 int defaultHeaterDuration = 10000;   // 10 giây
 int defaultFanDuration = 10000;      // 10 giây
+int wateringHour = 0;
+int wateringMinute = 48;
 
+struct tm timeInfo;
+
+int currentHour = timeInfo.tm_hour;
+int currentMinute = timeInfo.tm_min;
 double tankHeight = 1.5;
 
 // Biến thời gian
 unsigned long lastWateringTime = 0;
 unsigned long lastHeaterTime = 0;
 unsigned long lastFanTime = 0;
+
+// MQTT Receiver
+void callback(char *topic, byte *message, unsigned int length)
+{
+  Serial.println(length);
+  // Chuyển message thành chuỗi
+  String strMsg;
+  for (int i = 0; i < length; i++)
+  {
+    strMsg += (char)message[i];
+  }
+
+  Serial.print("Topic: ");
+  Serial.println(topic);
+  Serial.print("Message: ");
+  Serial.println(strMsg);
+
+  // Kiểm tra topic
+  if (String(topic) == "smart-garden-web/settings")
+  {
+    // Buffer để parse JSON
+    StaticJsonDocument<1024> doc;
+
+    // Parse JSON
+    DeserializationError error = deserializeJson(doc, strMsg);
+    if (error)
+    {
+      Serial.print("JSON parse failed: ");
+      Serial.println(error.c_str());
+      return;
+    }
+
+    // Gán giá trị từ JSON
+    maxTemp = doc["maxTemp"] == "" ? maxTemp : doc["maxTemp"].as<double>();
+    minTemp = doc["minTemp"] == "" ? minTemp : doc["minTemp"].as<double>();
+    maxHumid = doc["maxHumid"] == "" ? maxHumid : doc["maxHumid"].as<double>();
+    minHumid = doc["minHumid"] == "" ? minHumid : doc["minHumid"].as<double>();
+    maxBrightness = doc["maxLux"] == "" ? maxBrightness : doc["maxLux"].as<double>();
+    minBrightness = doc["minLux"] == "" ? minBrightness : doc["minLux"].as<double>();
+    maxWaterLevel = doc["maxHeight"] == "" ? maxWaterLevel : doc["maxHeight"].as<double>();
+    minWaterLevel = doc["minHeight"] == "" ? minWaterLevel : doc["minHeight"].as<double>();
+    defaultWateringDuration = doc["waterDuration"] == "" ? defaultWateringDuration : int(doc["wateringDuration"].as<double>() * 60000);
+    defaultHeaterDuration = doc["heaterDuration"] == "" ? defaultHeaterDuration : int(doc["heaterDuration"].as<double>() * 60000);
+    defaultFanDuration = doc["fanDuration"] == "" ? defaultFanDuration : int(doc["fanDuration"].as<double>() * 60000);
+    tankHeight = doc["tankHeight"] == "" ? tankHeight : doc["tankHeight"].as<double>();
+    String waterTime = doc["waterTime"].as<String>();
+    if (waterTime != "")
+    {
+      int separatorIndex = waterTime.indexOf(':');
+      wateringHour = waterTime.substring(0, separatorIndex).toInt();
+      wateringMinute = waterTime.substring(separatorIndex + 1).toInt();
+    }
+
+    // In ra giá trị để kiểm tra
+    Serial.println("Updated settings:");
+    Serial.print("Max Temp: ");
+    Serial.println(maxTemp);
+    Serial.print("Min Temp: ");
+    Serial.println(minTemp);
+    Serial.print("Max Humidity: ");
+    Serial.println(maxHumid);
+    Serial.print("Min Humidity: ");
+    Serial.println(minHumid);
+    Serial.print("Max Brightness: ");
+    Serial.println(maxBrightness);
+    Serial.print("Min Brightness: ");
+    Serial.println(minBrightness);
+    Serial.print("Max Water Level: ");
+    Serial.println(maxWaterLevel);
+    Serial.print("Min Water Level: ");
+    Serial.println(minWaterLevel);
+    Serial.print("Default Watering Duration: ");
+    Serial.println(defaultWateringDuration);
+    Serial.print("Default Heater Duration: ");
+    Serial.println(defaultHeaterDuration);
+    Serial.print("Default Fan Duration: ");
+    Serial.println(defaultFanDuration);
+    Serial.print("Tank Height: ");
+    Serial.println(tankHeight);
+    Serial.print("Watering Time: ");
+    Serial.println(wateringHour);
+    Serial.print(":");
+    Serial.println(wateringMinute);
+  }
+}
+
+double getDistance()
+{
+  digitalWrite(trigPin, LOW);
+  delayMicroseconds(2);
+  digitalWrite(trigPin, HIGH);
+  delayMicroseconds(10);
+  digitalWrite(trigPin, LOW);
+  long duration = pulseIn(echoPin, HIGH);
+  double distanceM = duration * 0.034 / 200.0;
+  return distanceM;
+}
+
+double getBrightness()
+{
+  int analogValue = analogRead(photoResistorPin);
+  double voltage = analogValue / 4096.0 * 5;
+  double resistance = 2000 * voltage / (1 - voltage / 5);
+  double lux = pow(50 * 1e3 * pow(10, 0.7) / resistance, (1 / 0.7));
+  return lux;
+}
+
+void initTime()
+{
+  configTime(7 * 3600, 0, "time.google.com", "time.windows.com", "pool.ntp.org");
+  Serial.println("Waiting for time...");
+  while (!time(nullptr))
+  {
+    delay(1000);
+    Serial.print(".");
+  }
+  Serial.println("\nTime initialized");
+}
+
+bool isWateringTime()
+{
+  struct tm timeInfo;
+  if (!getLocalTime(&timeInfo))
+  {
+    Serial.println("Failed to obtain time");
+    return false;
+  }
+
+  int currentHour = timeInfo.tm_hour;
+  int currentMinute = timeInfo.tm_min;
+
+  Serial.print("Current time: ");
+  Serial.print(currentHour);
+  Serial.print(":");
+  Serial.println(currentMinute);
+
+  return (currentHour == wateringHour && currentMinute == wateringMinute);
+}
 
 void setup()
 {
@@ -123,37 +255,17 @@ void setup()
   // Cấu hình MQTT Client
   wifiClient.setInsecure();
   mqttClient.setServer(mqttServer, port);
+  mqttClient.setCallback(callback);
 
   // Kết nối MQTT
   mqttConnect();
-}
 
-double getDistance()
-{
-  digitalWrite(trigPin, LOW);
-  delayMicroseconds(2);
-  digitalWrite(trigPin, HIGH);
-  delayMicroseconds(10);
-  digitalWrite(trigPin, LOW);
-  long duration = pulseIn(echoPin, HIGH);
-  double distanceM = duration * 0.034 / 200.0;
-  return distanceM;
-}
-
-double getBrightness()
-{
-  int analogValue = analogRead(photoResistorPin);
-  double voltage = analogValue / 4096.0 * 5;
-  double resistance = 2000 * voltage / (1 - voltage / 5);
-  double lux = pow(50 * 1e3 * pow(10, 0.7) / resistance, (1 / 0.7));
-  return lux;
+  // Cài đặt thời gian
+  initTime();
 }
 
 void loop()
 {
-  // Nhận ngưỡng từ web
-  // ...
-
   unsigned long currentMillis = millis();
 
   // Đọc dữ liệu cảm biến
@@ -169,7 +281,7 @@ void loop()
   Serial.println("----------------------------");
 
   // Kiểm tra và bật hệ thống nước
-  if (data.temperature >= maxTemp || data.humidity <= minHumid)
+  if (isWateringTime() || data.temperature >= maxTemp || data.humidity <= minHumid)
   {
     Serial.println(currentMillis - lastWateringTime);
     if (currentMillis - lastWateringTime >= defaultWateringDuration)
