@@ -42,6 +42,10 @@ unsigned long lastWateringTime = 0;
 unsigned long lastHeaterTime = 0;
 unsigned long lastFanTime = 0;
 
+// Biến trạng thái
+bool lastPumpState = false;
+bool lastLightState = false;
+
 void wifiConnect()
 {
   WiFi.begin(ssid, password);
@@ -145,7 +149,6 @@ void loop()
   // Kiểm tra và bật hệ thống nước
   if (data.temperature >= maxTemp || data.humidity <= minHumid)
   {
-    sendTelegramMessage("⚠️ Cảnh báo: Nhiệt độ quá cao!");
     if (currentMillis - lastWateringTime >= defaultWateringDuration)
     {
       Serial.println("Watering: OFF");
@@ -154,6 +157,7 @@ void loop()
     }
     else
     {
+      sendTelegramMessage("⚠️ Cảnh báo: Nhiệt độ quá cao! \n Bật hệ thống tưới nước.");
       digitalWrite(waterPin, HIGH);
       Serial.println("Watering: ON");
     }
@@ -169,18 +173,22 @@ void loop()
   }
 
   // Kiểm tra và bật máy bơm
-  if (waterLevel <= tankHeight * minWaterLevel)
+  if (waterLevel <= tankHeight * minWaterLevel && !lastPumpState)
   {
+    sendTelegramMessage("⚠️ Cảnh báo: Nước trong thùng còn lại ít! \n Bật hệ thống bơm nước.");
+    lastPumpState = true;
     Serial.println("Warning: Water level too low!");
     digitalWrite(pumpPin, HIGH);
   }
-  else if (waterLevel >= tankHeight * maxWaterLevel)
+  else if (waterLevel >= tankHeight * maxWaterLevel && lastPumpState)
   {
+    sendTelegramMessage("Nước trong thùng đã đủ! \n Tắt hệ thống bơm nước.");
+    lastPumpState = false;
     digitalWrite(pumpPin, LOW);
   }
 
   // Kiểm tra và bật máy sưởi
-  if (data.temperature <= minTemp)
+  if (data.temperature < minTemp)
   {
     if (currentMillis - lastHeaterTime >= defaultHeaterDuration)
     {
@@ -190,6 +198,7 @@ void loop()
     }
     else
     {
+      sendTelegramMessage("⚠️ Cảnh báo: Nhiệt độ quá thấp! \n Bật hệ thống máy sưởi.");
       digitalWrite(heaterPin, HIGH);
       Serial.println("Heater: ON");
     }
@@ -215,6 +224,7 @@ void loop()
     }
     else
     {
+      sendTelegramMessage("⚠️ Cảnh báo: Độ ẩm quá cao! \n Bật hệ thống máy quạt.");
       digitalWrite(fanPin, HIGH);
       Serial.println("Fan: ON");
     }
@@ -231,13 +241,17 @@ void loop()
 
   // Kiểm tra và bật đèn
   // --ON-- 2000 --ON-- 5000 --OFF--
-  if (brightness <= minBrightness)
+  if (brightness <= minBrightness && !lastLightState)
   {
+    sendTelegramMessage("⚠️ Cảnh báo: Trời tối! \n Bật đèn");
+    lastLightState = true;
     Serial.println("Light: ON");
     digitalWrite(lightPin, HIGH);
   }
-  else if (brightness >= minBrightness)
+  else if (brightness >= minBrightness && lastLightState)
   {
+    sendTelegramMessage("Trời sáng! \n Tắt đèn");
+    lastLightState = false;
     Serial.println("Light: OFF");
     digitalWrite(lightPin, LOW);
   }
