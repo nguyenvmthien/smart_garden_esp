@@ -11,7 +11,7 @@ const String CHANNEL_ID = "1501781748";
 // Cài đặt chân
 const int trigPin = 4;
 const int echoPin = 0;
-const int photoResistorPin = 2;
+const int photoResistorPin = 32;
 DHTesp dhtSensor;
 const int dhtPin = 17;
 const int lightPin = 25;
@@ -42,23 +42,19 @@ unsigned long lastWateringTime = 0;
 unsigned long lastHeaterTime = 0;
 unsigned long lastFanTime = 0;
 
-// Biến trạng thái
-bool lastPumpState = false;
-bool lastLightState = false;
-
-void wifiConnect()
-{
-  WiFi.begin(ssid, password);
-  while (WiFi.status() != WL_CONNECTED)
+  void wifiConnect()
   {
-    delay(500);
-    Serial.print(".");
+    WiFi.begin(ssid, password);
+    while (WiFi.status() != WL_CONNECTED)
+    {
+      delay(500);
+      Serial.print(".");
+    }
+    digitalWrite(wifiLedPin, HIGH);
+    delay(2000);
+    digitalWrite(wifiLedPin, LOW);
+    Serial.println(" Connected!");
   }
-  digitalWrite(wifiLedPin, HIGH);
-  delay(2000);
-  digitalWrite(wifiLedPin, LOW);
-  Serial.println(" Connected!");
-}
 
 void sendTelegramMessage(String message)
 {
@@ -102,6 +98,7 @@ void setup()
   pinMode(heaterPin, OUTPUT);
   pinMode(pumpPin, OUTPUT);
   pinMode(wifiLedPin, OUTPUT);
+  pinMode(photoResistorPin, INPUT);
 
   // Cài đặt cảm biến DHT
   dhtSensor.setup(dhtPin, DHTesp::DHT22);
@@ -148,7 +145,7 @@ void loop()
 
   // Kiểm tra và bật hệ thống nước
   if (data.temperature >= maxTemp || data.humidity <= minHumid)
-  {
+  {         
     if (currentMillis - lastWateringTime >= defaultWateringDuration)
     {
       Serial.println("Watering: OFF");
@@ -157,7 +154,6 @@ void loop()
     }
     else
     {
-      sendTelegramMessage("⚠️ Cảnh báo: Nhiệt độ quá cao! \n Bật hệ thống tưới nước.");
       digitalWrite(waterPin, HIGH);
       Serial.println("Watering: ON");
     }
@@ -173,22 +169,18 @@ void loop()
   }
 
   // Kiểm tra và bật máy bơm
-  if (waterLevel <= tankHeight * minWaterLevel && !lastPumpState)
+  if (waterLevel <= tankHeight * minWaterLevel)
   {
-    sendTelegramMessage("⚠️ Cảnh báo: Nước trong thùng còn lại ít! \n Bật hệ thống bơm nước.");
-    lastPumpState = true;
     Serial.println("Warning: Water level too low!");
     digitalWrite(pumpPin, HIGH);
   }
-  else if (waterLevel >= tankHeight * maxWaterLevel && lastPumpState)
+  else if (waterLevel >= tankHeight * maxWaterLevel)
   {
-    sendTelegramMessage("Nước trong thùng đã đủ! \n Tắt hệ thống bơm nước.");
-    lastPumpState = false;
     digitalWrite(pumpPin, LOW);
   }
 
   // Kiểm tra và bật máy sưởi
-  if (data.temperature < minTemp)
+  if (data.temperature <= minTemp)
   {
     if (currentMillis - lastHeaterTime >= defaultHeaterDuration)
     {
@@ -198,7 +190,6 @@ void loop()
     }
     else
     {
-      sendTelegramMessage("⚠️ Cảnh báo: Nhiệt độ quá thấp! \n Bật hệ thống máy sưởi.");
       digitalWrite(heaterPin, HIGH);
       Serial.println("Heater: ON");
     }
@@ -224,7 +215,6 @@ void loop()
     }
     else
     {
-      sendTelegramMessage("⚠️ Cảnh báo: Độ ẩm quá cao! \n Bật hệ thống máy quạt.");
       digitalWrite(fanPin, HIGH);
       Serial.println("Fan: ON");
     }
@@ -241,17 +231,13 @@ void loop()
 
   // Kiểm tra và bật đèn
   // --ON-- 2000 --ON-- 5000 --OFF--
-  if (brightness <= minBrightness && !lastLightState)
+  if (brightness <= minBrightness)
   {
-    sendTelegramMessage("⚠️ Cảnh báo: Trời tối! \n Bật đèn");
-    lastLightState = true;
     Serial.println("Light: ON");
     digitalWrite(lightPin, HIGH);
   }
-  else if (brightness >= minBrightness && lastLightState)
+  else if (brightness >= minBrightness)
   {
-    sendTelegramMessage("Trời sáng! \n Tắt đèn");
-    lastLightState = false;
     Serial.println("Light: OFF");
     digitalWrite(lightPin, LOW);
   }

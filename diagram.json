@@ -24,7 +24,7 @@
       "id": "ultrasonic1",
       "top": -104.1,
       "left": 216.7,
-      "attrs": { "distance": "297" }
+      "attrs": { "distance": "2" }
     },
     {
       "type": "wokwi-photoresistor-sensor",
@@ -38,7 +38,7 @@
       "id": "dht1",
       "top": -134.1,
       "left": 129,
-      "attrs": { "humidity": "62", "temperature": "35" }
+      "attrs": { "humidity": "44.5", "temperature": "35" }
     },
     { "type": "wokwi-relay-module", "id": "relay1", "top": -67, "left": 528, "attrs": {} },
     { "type": "wokwi-relay-module", "id": "relay2", "top": 0.2, "left": 528, "attrs": {} },
@@ -124,7 +124,6 @@
     [ "esp:5V", "bb1:bp.1", "red", [ "v38.4", "h115.35", "v-56.7" ] ],
     [ "esp:GND.1", "bb1:bn.1", "black", [ "h-19.05", "v105.6", "h180.8" ] ],
     [ "bb1:bn.8", "bb1:10b.j", "green", [ "v0" ] ],
-    [ "esp:16", "bb1:3b.h", "green", [ "h0" ] ],
     [ "bb1:bn.25", "bb1:tn.25", "green", [ "h11.2", "v-174" ] ],
     [ "bb1:tp.25", "bb1:bp.25", "green", [ "h1.6", "v174" ] ],
     [ "ultrasonic1:VCC", "bb1:tp.14", "red", [ "v0" ] ],
@@ -133,7 +132,6 @@
     [ "ultrasonic1:ECHO", "esp:0", "green", [ "v9.6", "h-202.4", "v153.6" ] ],
     [ "ldr1:VCC", "bb1:bp.18", "red", [ "v-19.2", "h8" ] ],
     [ "ldr1:GND", "bb1:bn.18", "black", [ "h0" ] ],
-    [ "ldr1:AO", "esp:2", "green", [ "v28.1", "h-240", "v-124.8" ] ],
     [ "dht1:SDA", "esp:17", "green", [ "v0" ] ],
     [ "dht1:VCC", "bb1:tp.1", "red", [ "v0" ] ],
     [ "dht1:GND", "bb1:tn.4", "black", [ "v0" ] ],
@@ -167,15 +165,17 @@
     [ "led6:C", "gnd1:GND", "black", [ "h38", "v211.2" ] ],
     [ "led5:C", "gnd1:GND", "black", [ "h38", "v144" ] ],
     [ "led4:C", "gnd1:GND", "black", [ "h38", "v76.8" ] ],
-    [ "led1:A", "bb1:9b.f", "", [ "$bb" ] ],
-    [ "led1:C", "bb1:10b.f", "", [ "$bb" ] ],
-    [ "r1:1", "bb1:3b.i", "", [ "$bb" ] ],
-    [ "r1:2", "bb1:9b.i", "", [ "$bb" ] ],
     [ "relay1:NO", "r2:1", "green", [ "h0" ] ],
     [ "relay2:NO", "r3:1", "green", [ "h0" ] ],
     [ "relay3:NO", "r4:1", "green", [ "h0" ] ],
     [ "relay4:NO", "r5:1", "green", [ "h0" ] ],
-    [ "relay5:NO", "r6:1", "green", [ "h0" ] ]
+    [ "relay5:NO", "r6:1", "green", [ "h0" ] ],
+    [ "led1:A", "bb1:9b.f", "", [ "$bb" ] ],
+    [ "led1:C", "bb1:10b.f", "", [ "$bb" ] ],
+    [ "r1:1", "bb1:3b.i", "", [ "$bb" ] ],
+    [ "r1:2", "bb1:9b.i", "", [ "$bb" ] ],
+    [ "ldr1:AO", "esp:32", "green", [ "v28.1", "h-403.2", "v-201.6" ] ],
+    [ "bb1:3b.h", "esp:16", "green", [ "v0" ] ]
   ],
   "dependencies": {}
 }
