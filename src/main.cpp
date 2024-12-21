@@ -132,10 +132,10 @@ void callback(char *topic, byte *message, unsigned int length)
     minHumid = doc["minHumid"] == "" ? minHumid : doc["minHumid"].as<double>();
     maxBrightness = doc["maxLux"] == "" ? maxBrightness : doc["maxLux"].as<double>();
     minBrightness = doc["minLux"] == "" ? minBrightness : doc["minLux"].as<double>();
-    maxWaterLevel = doc["maxHeight"] == "" ? maxWaterLevel : doc["maxHeight"].as<double>();
-    minWaterLevel = doc["minHeight"] == "" ? minWaterLevel : doc["minHeight"].as<double>();
-    defaultWateringDuration = doc["waterDuration"] == "" ? defaultWateringDuration : int(doc["wateringDuration"].as<double>() * 60000);
-    defaultHeaterDuration = doc["heaterDuration"] == "" ? defaultHeaterDuration : int(doc["heaterDuration"].as<double>() * 60000);
+    maxWaterLevel = doc["maxHeight"] == "" ? maxWaterLevel : doc["maxHeight"].as<double>() / 100;
+    minWaterLevel = doc["minHeight"] == "" ? minWaterLevel : doc["minHeight"].as<double>() / 100;
+    defaultWateringDuration = doc["waterDuration"] == "" ? defaultWateringDuration : int(doc["waterDuration"].as<double>() * 60000);
+    defaultHeaterDuration = doc["heaterDuration"] == "" ? defaultHeaterDuration : int(doc["heatDuration"].as<double>() * 60000);
     defaultFanDuration = doc["fanDuration"] == "" ? defaultFanDuration : int(doc["fanDuration"].as<double>() * 60000);
     tankHeight = doc["tankHeight"] == "" ? tankHeight : doc["tankHeight"].as<double>();
     String waterTime = doc["waterTime"].as<String>();
@@ -388,30 +388,14 @@ void loop()
   mqttClient.loop();
 
   //***Publish data to MQTT Server***
-  if (!isnan(data.temperature))
-  {
-    char tempBuffer[50];
-    sprintf(tempBuffer, "%.1f", data.temperature);
-    mqttClient.publish("smart-garden/temperature", tempBuffer);
-  }
-  if (!isnan(data.humidity))
-  {
-    char tempBuffer[50];
-    sprintf(tempBuffer, "%.1f", data.humidity);
-    mqttClient.publish("smart-garden/humidity", tempBuffer);
-  }
-  if (!isnan(brightness))
-  {
-    char tempBuffer[50];
-    sprintf(tempBuffer, "%.1f", brightness);
-    mqttClient.publish("smart-garden/brightness", tempBuffer);
-    Serial.println("Brightness: " + String(brightness) + " lux");
-  }
-  if (!isnan(waterLevel))
-  {
-    char tempBuffer[50];
-    sprintf(tempBuffer, "%.1f", waterLevel);
-    mqttClient.publish("smart-garden/water-level", tempBuffer);
-  }
+  StaticJsonDocument<512> jsonDoc;
+  jsonDoc["temperature"] = String(data.temperature, 1).toDouble();
+  jsonDoc["humidity"] = String(data.humidity, 1).toDouble();
+  jsonDoc["brightness"] = String(brightness, 1).toDouble();
+  jsonDoc["waterLevel"] = String(waterLevel, 1).toDouble();
+
+  char jsonBuffer[512];
+  serializeJson(jsonDoc, jsonBuffer);
+  mqttClient.publish("smart-garden/data", jsonBuffer);
   delay(1000);
 }

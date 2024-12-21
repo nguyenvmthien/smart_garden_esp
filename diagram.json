@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "author": "Nguyen Van Minh Thien",
+  "author": "Minh Nguyễn Nhật",
   "editor": "wokwi",
   "parts": [
     { "type": "wokwi-breadboard-half", "id": "bb1", "top": -3, "left": 108.4, "attrs": {} },
