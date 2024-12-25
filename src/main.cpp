@@ -68,7 +68,7 @@ const int heaterPin = 14;
 const int pumpPin = 12;
 
 // Ngưỡng cài đặt
-double minTemp = 25.0;
+double minTemp = 20.0;
 double maxTemp = 30.0;
 double minHumid = 40.0;
 double maxHumid = 60.0;
@@ -114,7 +114,7 @@ void callback(char *topic, byte *message, unsigned int length)
   if (String(topic) == "smart-garden-web/settings")
   {
     // Buffer để parse JSON
-    StaticJsonDocument<1024> doc;
+    StaticJsonDocument<512> doc;
 
     // Parse JSON
     DeserializationError error = deserializeJson(doc, strMsg);
@@ -126,18 +126,18 @@ void callback(char *topic, byte *message, unsigned int length)
     }
 
     // Gán giá trị từ JSON
-    maxTemp = doc["maxTemp"] == "" ? maxTemp : doc["maxTemp"].as<double>();
-    minTemp = doc["minTemp"] == "" ? minTemp : doc["minTemp"].as<double>();
-    maxHumid = doc["maxHumid"] == "" ? maxHumid : doc["maxHumid"].as<double>();
-    minHumid = doc["minHumid"] == "" ? minHumid : doc["minHumid"].as<double>();
-    maxBrightness = doc["maxLux"] == "" ? maxBrightness : doc["maxLux"].as<double>();
-    minBrightness = doc["minLux"] == "" ? minBrightness : doc["minLux"].as<double>();
-    maxWaterLevel = doc["maxHeight"] == "" ? maxWaterLevel : doc["maxHeight"].as<double>() / 100;
-    minWaterLevel = doc["minHeight"] == "" ? minWaterLevel : doc["minHeight"].as<double>() / 100;
-    defaultWateringDuration = doc["waterDuration"] == "" ? defaultWateringDuration : int(doc["waterDuration"].as<double>() * 60000);
-    defaultHeaterDuration = doc["heaterDuration"] == "" ? defaultHeaterDuration : int(doc["heatDuration"].as<double>() * 60000);
-    defaultFanDuration = doc["fanDuration"] == "" ? defaultFanDuration : int(doc["fanDuration"].as<double>() * 60000);
-    tankHeight = doc["tankHeight"] == "" ? tankHeight : doc["tankHeight"].as<double>();
+    maxTemp = doc["maxT"] == "" ? maxTemp : doc["maxT"].as<double>();
+    minTemp = doc["minT"] == "" ? minTemp : doc["minT"].as<double>();
+    maxHumid = doc["maxH"] == "" ? maxHumid : doc["maxH"].as<double>();
+    minHumid = doc["minH"] == "" ? minHumid : doc["minH"].as<double>();
+    maxBrightness = doc["maxB"] == "" ? maxBrightness : doc["maxB"].as<double>();
+    minBrightness = doc["minB"] == "" ? minBrightness : doc["minB"].as<double>();
+    maxWaterLevel = doc["maxHe"] == "" ? maxWaterLevel : doc["maxHe"].as<double>() / 100;
+    minWaterLevel = doc["minHe"] == "" ? minWaterLevel : doc["minHe"].as<double>() / 100;
+    defaultWateringDuration = doc["waterDrt"] == "" ? defaultWateringDuration : int(doc["waterDrt"].as<double>() * 60000);
+    defaultHeaterDuration = doc["heaterDrt"] == "" ? defaultHeaterDuration : int(doc["heatDrt"].as<double>() * 60000);
+    defaultFanDuration = doc["fanDrt"] == "" ? defaultFanDuration : int(doc["fanDrt"].as<double>() * 60000);
+    tankHeight = doc["tankH"] == "" ? tankHeight : doc["tankH"].as<double>();
     String waterTime = doc["waterTime"].as<String>();
     if (waterTime != "")
     {
@@ -374,7 +374,7 @@ void loop()
     Serial.println("Light: ON");
     digitalWrite(lightPin, HIGH);
   }
-  else if (brightness >= minBrightness)
+  else if (brightness > minBrightness)
   {
     Serial.println("Light: OFF");
     digitalWrite(lightPin, LOW);
